@@ -221,28 +221,30 @@ void get_items_periodicity(
     if (tid >= numberOfKeys) return;
 
     uint32_t maxPeriodFound = 0;
-    uint32_t lastSetBit = 0xFFFFFFFF; // Initialize to an invalid value
+    uint32_t lastSetBit = 0; // Initialize to an invalid value
     uint32_t traversed = 0;
 
     for (uint32_t i = 0; i < arraySize; i++) {
         uint32_t intersection = bitValues[tid * arraySize + i];
+        
+        int local = 0;
 
         // Process 32 bits of the current word
         while (intersection) {
             uint32_t leadingZeros = __clz(intersection); // Count leading zeros
-            uint32_t currentBit = traversed + 31 - leadingZeros;
+            local += leadingZeros;
+            uint32_t currentBit = traversed + leadingZeros;
 
-            if (lastSetBit != 0xFFFFFFFF) { // If this isn't the first set bit
-                uint32_t diff = currentBit - lastSetBit;
-                if (diff > maxPeriodFound) {
-                    maxPeriodFound = diff;
-                }
+            uint32_t diff = currentBit - lastSetBit;
+            if (diff > maxPeriodFound) {
+                maxPeriodFound = diff;
             }
 
             lastSetBit = currentBit;
 
             // Clear the current bit
-            intersection ^= (1 << (31 - leadingZeros));
+            intersection <<= leadingZeros + 1;
+            local += 1;
         }
 
         traversed += 32;
@@ -365,7 +367,7 @@ void supportAndPeriod(
     uint32_t supportCount = 0;
     uint32_t periodCount = 0;
     uint32_t traversed = 0;
-    uint32_t lastSetBit = 0xFFFFFFFF; // Initialize to an invalid value
+    uint32_t lastSetBit = 0; // Initialize to an invalid value
 
     for (uint32_t i = 0; i < arraySize; i++) {
         uint32_t intersection = 0xFFFFFFFF;  // Start with all bits set to 1
@@ -378,22 +380,24 @@ void supportAndPeriod(
         // Update support count using __popc
         supportCount += __popc(intersection);
 
+        int local = 0;
+
         // Process the bits in the current word
         while (intersection) {
             uint32_t leadingZeros = __clz(intersection); // Find the first set bit
-            uint32_t currentBit = traversed + 31 - leadingZeros;
+            local += leadingZeros;
+            uint32_t currentBit = traversed + local;
 
-            if (lastSetBit != 0xFFFFFFFF) { // Not the first set bit
                 uint32_t diff = currentBit - lastSetBit;
                 if (diff > period[tid]) {
                     period[tid] = diff;
                 }
-            }
 
             lastSetBit = currentBit;
 
             // Clear the current bit
-            intersection ^= (1 << (31 - leadingZeros));
+            intersection <<= leadingZeros + 1;
+            local += 1;
         }
 
         traversed += 32;
@@ -618,13 +622,12 @@ class cuPFPMiner:
 
 
 if __name__ == "__main__":
-    file = "/home/tarun/cuPAMI/datasets/Temporal_kosarak.csv"
-    minSup = 100
-    maxPer = 100000
+    file = "/home/tarun/cuPAMI/datasets/Temporal_T10I4D100K.csv"
+    minSup = 20
+    maxPer = 30000
     sep = "\t"
     output_file = "output.txt"
 
     miner = cuPFPMiner(file, minSup, maxPer, sep, output_file, 'managed')
     miner.mine()
     miner.printResults()
-
