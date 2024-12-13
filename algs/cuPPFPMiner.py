@@ -238,6 +238,9 @@ void get_items_periodicity(
             local += leadingZeros;
             uint32_t current = local + traversed;
 
+            if (current >= maxTimeStamp )
+                break;
+
             uint32_t diff = current - lastSetBit;
             if (diff <= maxPeriod) {
                 period[tid]++;
@@ -247,8 +250,7 @@ void get_items_periodicity(
             
             intersection <<= leadingZeros + 1; // Shift the first set bit to the most significant position
             local += 1;
-            if (local + traversed > maxTimeStamp )
-                return;
+            
             
         }
 
@@ -349,6 +351,85 @@ void write_the_new_candidates(
     "write_the_new_candidates",
 )
 
+supportAndPeriod_no_intrin = cp.RawKernel(r'''
+                                
+#define uint32_t unsigned int
+                                
+extern "C" __global__
+void supportAndPeriod_no_intrin(
+    const unsigned int *bitValues, unsigned int arraySize,
+    const unsigned int *candidates, unsigned int numberOfKeys, unsigned int keySize,
+    unsigned int *support, unsigned int *period,
+    unsigned int maxPeriod, unsigned int maxTimeStamp
+)
+{
+    unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid >= numberOfKeys) return;
+
+    unsigned int supportCount = 0;
+    unsigned int lastSetBit = 0; // Start from timestamp zero
+
+    // Loop over the bitValues array
+    for (unsigned int i = 0; i < arraySize; ++i)
+    {
+        // Compute the intersection of the bit vectors for the candidate itemset
+        unsigned int intersection = 0xFFFFFFFF;
+        for (unsigned int k = 0; k < keySize; ++k)
+        {
+            unsigned int item = candidates[tid * keySize + k];
+            intersection &= bitValues[item * arraySize + i];
+        }
+
+        uint32_t traversed = i * 32;
+        uint32_t local = 0;
+
+        while (intersection)
+        {
+            unsigned int position = 0;
+
+            // Find the position of the first set bit
+            while (!(intersection & 1)) // Shift until we find the first set bit
+            {
+                intersection >>= 1;
+                position++;
+            }
+            supportCount++;
+
+            local += position;
+            unsigned int current = local + traversed;
+            
+            if (current >= maxTimeStamp )
+                break;
+
+            unsigned int diff = current - lastSetBit;
+            if (diff <= maxPeriod)
+            {
+                period[tid]++;
+            }
+
+            lastSetBit = current;
+
+            // Clear the first set bit by shifting right by 1
+            intersection >>= 1;
+            local += 1;
+            
+        }
+    }
+
+    // After processing all bits, process the gap between lastSetBit and maxTimeStamp
+    unsigned int diff = maxTimeStamp - lastSetBit;
+
+    if (diff <= maxPeriod) period[tid]++;
+
+    // Set the support value
+    support[tid] = supportCount;
+}
+
+
+''', 'supportAndPeriod_no_intrin')
+
+
+
 supportAndPeriod = cp.RawKernel(r'''
                                 
 #define uint32_t unsigned int
@@ -387,7 +468,13 @@ void supportAndPeriod(
         {
             unsigned int leadingZeros = __clz(intersection); // Find the first set bit
             local += leadingZeros;
+            if (local + traversed > maxTimeStamp)
+                return;
+            
             unsigned int current = local + traversed;
+            
+            if (current >= maxTimeStamp )
+                break;
             
             unsigned int diff = current - lastSetBit;
             if (diff <= maxPeriod)
@@ -400,14 +487,15 @@ void supportAndPeriod(
             intersection <<= leadingZeros + 1; // Shift the first set bit to the most significant position
             local += 1;
             
+
+            
         }
     }
 
     // After processing all bits, process the gap between lastSetBit and maxTimeStamp
     unsigned int diff = maxTimeStamp - lastSetBit;
 
-    if (diff <= maxPeriod)
-        period[tid]++;
+    if (diff <= maxPeriod) period[tid]++;
 
     // Set the support value
     support[tid] = supportCount;
@@ -418,13 +506,19 @@ void supportAndPeriod(
 
 
 class cuPPFPMiner:
-    def __init__(self, file, minSup, maxPer, per_ratio, sep, output_file, allocator = 'device'):
+    def __init__(self, file, minSup, maxPer, per_ratio, sep, output_file, allocator = 'device', native_custom = "native", output = "raw"):
         self.file = file
         self.minSup = minSup
         self.maxPer = maxPer
         self.sep = sep
         self.per_ratio = per_ratio
-        self.output_file = kvikio.CuFile(output_file, "w")
+        # self.output_file = kvikio.CuFile(output_file, "w")
+        self.output = output
+        if output == "raw":
+            self.output_file = kvikio.CuFile(output_file, "w")
+        else:
+            self.output_file = open(output_file, "w")
+        self.native_custom = native_custom
         
         
         cp.cuda.MemoryPool().free_all_blocks()
@@ -515,7 +609,6 @@ class cuPPFPMiner:
     def mine(self, blockSize = 32):
         start = time.time()
         raw_data, line_bounds, timestamps, number_of_lines, number_of_items = self.readFile(blockSize)
-        print("Time to read file: ", time.time() - start)
 
         unique_items = cp.unique(raw_data)
         largest_item = int(cp.max(unique_items))
@@ -530,7 +623,16 @@ class cuPPFPMiner:
         rename_old_to_new = validty.copy()
         rename_old_to_new = cp.roll(rename_old_to_new, 1)
         rename_old_to_new = cp.cumsum(rename_old_to_new).astype(cp.int32)
-        self.output_file.write(rename_old_to_new)
+        
+        host_rename_old_to_new = rename_old_to_new.get()
+        
+        # new to old dictionary for renaming
+        if self.output != "raw":
+            self.rename_new_to_old = {}
+            for i in range(len(rename_old_to_new)):
+                self.rename_new_to_old[host_rename_old_to_new[i]] = i
+        else:
+            self.output_file.write(rename_old_to_new)
 
         integers_per_item_for_bitsets = number_of_lines // 32 + 1
         number_of_valid_items = int(rename_old_to_new[-1].get()) + 1
@@ -552,9 +654,11 @@ class cuPPFPMiner:
         key_size = 1
 
         patterns = len(cp.where((supports >= self.minSup) & (ratio >= self.per_ratio))[0])
+        
+        
+        temporary_holder = [[candidates.get(), supports.get(), periodicity.get(), ratio.get()]]
 
         while len(candidates) > 1:
-            print("Number of Candidates: ", len(candidates))
             num_new_candidates = cp.zeros(len(candidates) + 1, dtype=cp.uint32)
             number_of_new_candidates_to_generate((len(candidates)//blockSize + 1,), (blockSize,), (candidates, len(candidates), key_size, num_new_candidates))
 
@@ -568,31 +672,51 @@ class cuPPFPMiner:
 
             supports = cp.zeros(num_new_candidates, dtype=cp.int32)
             periodicity = cp.zeros(num_new_candidates, dtype=cp.int32)
-            supportAndPeriod((num_new_candidates//blockSize + 1,), (blockSize,), 
+            
+            if self.native_custom == "native":
+                supportAndPeriod((num_new_candidates//blockSize + 1,), (blockSize,), 
                 (bitsets, integers_per_item_for_bitsets, new_candidates, num_new_candidates, cp.int32(key_size),
                 supports, periodicity, self.maxPer, max_timestamp))
+            else:
+                supportAndPeriod_no_intrin((num_new_candidates//blockSize + 1,), (blockSize,), 
+                (bitsets, integers_per_item_for_bitsets, new_candidates, num_new_candidates, cp.int32(key_size),
+                supports, periodicity, self.maxPer, max_timestamp))
+            
             cp.cuda.device.Device().synchronize()
 
             ratio = periodicity / (supports + 1)
             
 
             locations = cp.where((supports >= self.minSup) & (ratio >= self.per_ratio))[0]
-
             patterns += len(locations)
-
             locations = cp.where(supports >= self.minSup)[0]
+
+            if self.output == "raw":
+                self.output_file.write(num_new_candidates)
+                self.output_file.write(cp.int32(key_size))
+                self.output_file.write(new_candidates[locations])
+                self.output_file.write(supports[locations])
+                self.output_file.write(periodicity[locations])
+            else:
+                temporary_holder.append([new_candidates[locations].get(), supports[locations].get(), 
+                                            periodicity[locations].get(), ratio[locations].get()])
 
             
 
-            self.output_file.write(num_new_candidates)
-            self.output_file.write(cp.int32(key_size))
-            self.output_file.write(candidates[locations])
-            self.output_file.write(supports[locations])
-            self.output_file.write(periodicity[locations])
-
             candidates = new_candidates[locations].astype(cp.uint32)
 
-
+        if self.output != "raw":
+            self.output_file.write("Pattern\tSupport\tPeriodicity\tRatio\n")
+            for i in range(len(temporary_holder)):
+                for j in range(len(temporary_holder[i][0])):
+                    holder = ""
+                    if i == 0:
+                        holder = [host_rename_old_to_new[temporary_holder[i][0][j]]]
+                    else:
+                        holder = [host_rename_old_to_new[x] for x in temporary_holder[i][0][j]]
+                    holder = " ".join(str(x) for x in holder)
+                    holder += ":" + str(temporary_holder[i][1][j]) + ":" + str(temporary_holder[i][2][j]) + ":" + str(temporary_holder[i][3][j]) + "\n"
+                    self.output_file.write(holder)
 
 
         self.number_of_patterns = patterns
@@ -601,7 +725,9 @@ class cuPPFPMiner:
         pid = psutil.Process(pid)
         self.memoryRSS = pid.memory_info().rss
         self.memoryUSS = pid.memory_full_info().uss
-        mempool = cp.get_default_memory_pool()
+        # self.temp_gpu_memory = cp.cuda.MemoryPool().used_bytes()
+
+        mempool = cp.cuda.MemoryPool()
 
         # Get the total memory allocated by CuPy (in bytes)
         total_memory = mempool.total_bytes()
@@ -637,12 +763,16 @@ class cuPPFPMiner:
 
 if __name__ == "__main__":
     file = "/home/tarun/cuPAMI/datasets/Temporal_T10I4D100K.csv"
-    minSup = 10
+    minSup = 50
     maxPer = 5000
-    per_ratio = 0.8
+    per_ratio = 1
     sep = "\t"
     output_file = "output.txt"
 
-    miner = cuPPFPMiner(file, minSup, maxPer, per_ratio, sep, output_file, 'managed')
-    miner.mine()
+    miner = cuPPFPMiner(file, minSup, maxPer, per_ratio, sep, output_file, 'managed', "native", "custom")
+    miner.mine(512)
     miner.printResults()
+
+    # miner = cuPPFPMiner(file, minSup, maxPer, per_ratio, sep, output_file, 'managed', "custom")
+    # miner.mine(512)
+    # miner.printResults()
