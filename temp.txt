@@ -1,0 +1,27 @@
+   -1 -1 -1  -1 -1 5 274 368 -1 561 630 -1 538 -1 834 -1 -1 825 -1 -1 240 -1 687 -1 775 164 -1 -1 Number of candidates: 797
+Number of candidates: 8827
+Number of candidates: 7126
+Number of candidates: 5494
+Number of candidates: 3186
+Number of candidates: 1429
+Number of candidates: 503
+Number of candidates: 130
+Number of candidates: 23
+Number of candidates: 2
+Runtime: 2.1606132984161377
+Number of frequent patterns: 27517
+Number of candidates: 797
+Runtime: 0.03605818748474121
+Number of frequent patterns: 797
+Number of candidates: 797
+Number of candidates: 8827
+Number of candidates: 7126
+Number of candidates: 5494
+Number of candidates: 3186
+Number of candidates: 1429
+Number of candidates: 503
+Number of candidates: 130
+Number of candidates: 23
+Number of candidates: 2
+Runtime: 2.0953903198242188
+Number of frequent patterns: 27517

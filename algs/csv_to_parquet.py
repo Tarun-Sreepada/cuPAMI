@@ -19,4 +19,4 @@ def csv_to_parquet(csv_path, parquet_path, sep):
     print(cudf_df.head())
     
     
-csv_to_parquet("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv", "/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", '\t')
+# csv_to_parquet("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv", "/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", '\t')

@@ -337,6 +337,7 @@ class cuFPMiner_bit:
     def mine(self):
         start = time.time()
         supports = self.read_data()
+        print("Time to read data:", time.time() - start)
         
         # find frequent items
         cands = cp.where(supports >= self.minSup)[0].astype(cp.int32)
@@ -400,11 +401,17 @@ class cuFPMiner_bit:
         
 if __name__ == "__main__":
     
-    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv", 20, '\t', 'csv', 'device')
+    obj = cuFPMiner_bit("/home/tarun/cuPAMI/algs/lines.txt", 2200000, ' ', 'csv', 'managed')
     obj.mine()
     obj.printResults()
-    obj.savePatterns("patterns2.txt")
     
-    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
-    obj.mine()
-    obj.printResults()
+    
+    
+    
+    # obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_pumsb.csv", 40000, '\t', 'csv', 'device')
+    # obj.mine()
+    # obj.printResults()
+    
+    # obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
+    # obj.mine()
+    # obj.printResults()
