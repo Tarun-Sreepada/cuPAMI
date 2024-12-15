@@ -294,7 +294,6 @@ class cuFPMiner_bit:
         # Get lengths (non-null count per row)
         lengths = self.df.notnull().sum(axis=1).to_cupy()
         
-        
         # Add 0 to the start and the cumulative sum to get indices
         lengths = cp.concatenate([cp.array([0]), cp.cumsum(lengths)]).astype(cp.int32)
         
@@ -337,7 +336,7 @@ class cuFPMiner_bit:
     def mine(self):
         start = time.time()
         supports = self.read_data()
-        print("Time to read data:", time.time() - start)
+        print("Time to read: ", time.time() - start)
         
         # find frequent items
         cands = cp.where(supports >= self.minSup)[0].astype(cp.int32)
@@ -401,9 +400,9 @@ class cuFPMiner_bit:
         
 if __name__ == "__main__":
     
-    obj = cuFPMiner_bit("/home/tarun/cuPAMI/algs/lines.txt", 2200000, ' ', 'csv', 'managed')
-    obj.mine()
-    obj.printResults()
+    # obj = cuFPMiner_bit("/home/tarun/cuPAMI/algs/lines.txt", 2200000, ' ', 'csv', 'managed')
+    # obj.mine()
+    # obj.printResults()
     
     
     
@@ -412,6 +411,15 @@ if __name__ == "__main__":
     # obj.mine()
     # obj.printResults()
     
-    # obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
-    # obj.mine()
-    # obj.printResults()
+    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
+    obj.mine()
+    obj.printResults()
+    
+    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
+    obj.mine()
+    obj.printResults()
+    
+    # from PAMI.frequentPattern.basic.FPGrowth import FPGrowth
+    # fp = FPGrowth("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv", 20, '\t')
+    # fp.mine()
+    # fp.printResults()
