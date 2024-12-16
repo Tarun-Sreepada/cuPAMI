@@ -501,7 +501,8 @@ class cuFPMiner_hash:
     def mine(self):
         start = time.time()
         supports = self.read_file()
-        print("Time to read file:", time.time() - start)
+        # print("Time to read file:", time.time() - start)
+        self.time_to_read_file = time.time() - start
         # find frequent items
         try:
             # Attempt to perform the operation with CuPy
@@ -589,12 +590,21 @@ class cuFPMiner_hash:
         end = time.time()
     
         self.runtime = end - start
+        free_mem, total_mem = cp.cuda.runtime.memGetInfo()
+        used_mem = total_mem - free_mem
+        self.memory = used_mem / 1024 / 1024
     
     def getRuntime(self):
         return self.runtime
     
     def getPatterns(self):
         return self.Patterns    
+    
+    def getMemoryRSS(self):
+        return self.memory
+    
+    def getTimeToRead(self):
+        return self.time_to_read_file
     
     def savePatterns(self, file):
         with open(file, 'w') as f:

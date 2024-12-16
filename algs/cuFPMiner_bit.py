@@ -336,7 +336,7 @@ class cuFPMiner_bit:
     def mine(self):
         start = time.time()
         supports = self.read_data()
-        print("Time to read: ", time.time() - start)
+        self.time_to_read = time.time() - start
         
         # find frequent items
         cands = cp.where(supports >= self.minSup)[0].astype(cp.int32)
@@ -381,11 +381,21 @@ class cuFPMiner_bit:
         end = time.time()
         self.runtime = end - start
     
+        free_mem, total_mem = cp.cuda.runtime.memGetInfo()
+        used_mem = total_mem - free_mem
+        self.memory = used_mem / 1024 / 1024
+    
     def getRuntime(self):
         return self.runtime
     
     def getPatterns(self):
         return self.Patterns    
+
+    def getMemoryRSS(self):
+        return self.memory
+        
+    def getTimeToRead(self):
+        return self.time_to_read
         
     def printResults(self):
         print("Runtime:", self.runtime)
@@ -411,9 +421,10 @@ if __name__ == "__main__":
     # obj.mine()
     # obj.printResults()
     
-    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
+    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_pumsb.parquet", 39000, '\t', 'parquet', 'device')
     obj.mine()
     obj.printResults()
+    obj.savePatterns("patterns.txt")
     
     obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
     obj.mine()

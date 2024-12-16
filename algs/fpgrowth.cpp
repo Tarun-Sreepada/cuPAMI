@@ -12,6 +12,35 @@
 #include <iterator>
 #include <tuple>
 #include <omp.h>
+#include <unistd.h>
+
+long print_memory_usage()
+{
+    // Open the /proc/self/statm file
+    std::ifstream statm("/proc/self/statm");
+    if (!statm.is_open())
+    {
+        std::cerr << "Error: Could not open /proc/self/statm" << std::endl;
+        return -1; // Return -1 to indicate an error
+    }
+
+    long rss_pages = 0;
+    statm.ignore(std::numeric_limits<std::streamsize>::max(), ' '); // Skip the first value
+    statm >> rss_pages;                                             // Read the RSS (Resident Set Size) in pages
+    statm.close();                                                  // Close the file
+
+    if (rss_pages == 0)
+    {
+        std::cerr << "Error: Failed to read RSS from /proc/self/statm" << std::endl;
+        return -1;
+    }
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // Page size in KB
+    long rss_kb = rss_pages * page_size_kb;            // Calculate RSS in KB
+    long rss_mb = rss_kb / 1024;                       // Convert KB to MB
+
+    return rss_mb;
+}
 
 struct Node
 {
@@ -96,6 +125,8 @@ private:
             std::string line;
             while (std::getline(file, line))
             {
+                // remove carriage return
+                line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
                 if (!line.empty())
                 {
                     lines.push_back(line);
@@ -127,6 +158,10 @@ private:
                 // Trim whitespace
                 item.erase(item.find_last_not_of(" \t\n\r") + 1);
                 item.erase(0, item.find_first_not_of(" \t\n\r"));
+                if (item.empty())
+                {
+                    continue;
+                }
                 transaction.push_back(item);
 
                 // Update thread-local item counts
@@ -136,7 +171,8 @@ private:
             local_transactions[i] = std::move(transaction);
         }
 
-        // Merge thread-local counts into global item_count
+// Merge thread-local counts into global item_count
+#pragma omp critical
         for (auto &local_map : local_counts)
         {
             for (auto &kv : local_map)
@@ -181,31 +217,34 @@ private:
 
     void recursive_mining(Node *root, const std::map<std::string, std::pair<std::set<Node *>, int>> &item_node, int min_support)
     {
-        std::map<std::vector<std::string>, int> local_patterns;
 
         // Collect items that meet the minimum support before parallelizing
-        std::vector<std::string> frequent_items;
+        std::vector<std::pair<std::string, int>> freq_items;
         for (const auto &kv : item_node)
         {
             if (kv.second.second >= min_support)
             {
-                frequent_items.push_back(kv.first);
+                freq_items.push_back({kv.first, kv.second.second});
             }
         }
 
-        // Parallel for over frequent items
-        // Each iteration mines a conditional FP-tree for that item
+        // Sort items by descending frequency
+        std::sort(freq_items.begin(), freq_items.end(), [](const auto &a, const auto &b)
+                  { return a.second > b.second; });
+
+        std::map<std::vector<std::string>, int> local_patterns;
+
 #pragma omp parallel
         {
             std::map<std::vector<std::string>, int> thread_local_patterns;
 
 #pragma omp for nowait
-            for (int i = 0; i < (int)frequent_items.size(); i++)
+            for (int i = 0; i < (int)freq_items.size(); i++)
             {
-                const std::string &item = frequent_items[i];
+                const std::string &item = freq_items[i].first;
                 const auto &node_info = item_node.at(item);
 
-                // Extend the pattern
+                // Extend pattern
                 std::vector<std::string> new_itemset = root->item;
                 new_itemset.push_back(item);
                 thread_local_patterns[new_itemset] = node_info.second;
@@ -217,6 +256,8 @@ private:
                 for (Node *node : node_info.first)
                 {
                     auto [transaction, count] = node->traverse();
+                    if (transaction.empty())
+                        continue; // optionally skip empty
                     transactions.emplace_back(transaction, count);
                     for (const auto &trans_item : transaction)
                     {
@@ -224,23 +265,22 @@ private:
                     }
                 }
 
+                // Filter by min_support
                 for (auto it = item_count.begin(); it != item_count.end();)
                 {
                     if (it->second < min_support)
-                    {
                         it = item_count.erase(it);
-                    }
                     else
-                    {
                         ++it;
-                    }
                 }
 
                 if (item_count.empty())
                 {
+                    // No recursion needed if no conditional items remain
                     continue;
                 }
 
+                // Construct conditional FP-tree
                 Node *new_root = new Node(new_itemset, 0, nullptr);
                 std::map<std::string, std::pair<std::set<Node *>, int>> new_item_node;
 
@@ -251,10 +291,10 @@ private:
                     for (const auto &it : transaction)
                     {
                         if (item_count.find(it) != item_count.end())
-                        {
                             filtered_transaction.push_back(it);
-                        }
                     }
+
+                    // Sort by descending frequency
                     std::sort(filtered_transaction.begin(), filtered_transaction.end(), [&](const std::string &a, const std::string &b)
                               { return item_count[a] > item_count[b]; });
 
@@ -266,18 +306,11 @@ private:
                     }
                 }
 
-                // Recursively mine the conditional FP-tree
+                // Recursively mine conditional FP-tree if not empty
                 if (!new_item_node.empty())
                 {
-                    // We must call recursive_mining here. However, to keep parallelization effective,
-                    // we can either:
-                    //   a) Create tasks for deeper recursion.
-                    //   b) Temporarily switch to sequential recursion at lower levels.
-                    //
-                    // For simplicity here, let's do sequential recursion inside the parallel region.
-                    // If you want full parallel recursion, consider OpenMP tasks.
+                    // Use a non-parallel recursion for the conditional tree or replicate logic as needed
                     FPGrowth sub_fptree("", min_support, separator, num_cores);
-                    // We give the new_root item and new_item_node as the current root and nodes:
                     sub_fptree.sequential_recursive_mining(new_root, new_item_node, min_support, thread_local_patterns);
                 }
             }
@@ -438,7 +471,8 @@ public:
     void printResults()
     {
         std::cout << "Runtime: " << runtime << " seconds\n";
-        std::cout << "Total number of Frequent Patterns: " << final_patterns.size() << "\n";
+        std::cout << "Number of patterns: " << final_patterns.size() << "\n";
+        std::cout << "Memory usage: " << print_memory_usage() << " MB\n";
     }
 };
 

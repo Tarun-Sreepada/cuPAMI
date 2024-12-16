@@ -12,6 +12,33 @@
 #include <algorithm>
 #include <numeric>
 #include <omp.h>
+#include <unistd.h>
+
+
+long print_memory_usage() {
+    // Open the /proc/self/statm file
+    std::ifstream statm("/proc/self/statm");
+    if (!statm.is_open()) {
+        std::cerr << "Error: Could not open /proc/self/statm" << std::endl;
+        return -1; // Return -1 to indicate an error
+    }
+
+    long rss_pages = 0;
+    statm.ignore(std::numeric_limits<std::streamsize>::max(), ' '); // Skip the first value
+    statm >> rss_pages; // Read the RSS (Resident Set Size) in pages
+    statm.close(); // Close the file
+
+    if (rss_pages == 0) {
+        std::cerr << "Error: Failed to read RSS from /proc/self/statm" << std::endl;
+        return -1;
+    }
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // Page size in KB
+    long rss_kb = rss_pages * page_size_kb; // Calculate RSS in KB
+    long rss_mb = rss_kb / 1024; // Convert KB to MB
+
+    return rss_mb;
+}
 
 class Apriori
 {
@@ -203,11 +230,8 @@ public:
         runtime = std::chrono::duration<double>(end - start).count();
     }
 
-    void printResults() const
+    void save(const std::string &output)
     {
-        std::cout << "Number of patterns: " << Patterns.size() << std::endl;
-        std::cout << "Runtime: " << runtime << " seconds" << std::endl;
-
         std::ofstream outfile(output);
         if (!outfile.is_open())
         {
@@ -225,6 +249,13 @@ public:
         }
 
         outfile.close();
+    }
+
+    void printResults() const
+    {
+        std::cout << "Runtime: " << runtime << " seconds" << std::endl;
+        std::cout << "Number of patterns: " << Patterns.size() << std::endl;
+        std::cout << "Memory usage: " << print_memory_usage() << " MB" << std::endl;
     }
 
     double getRuntime() const { return runtime; }
@@ -265,6 +296,7 @@ int main(int argc, char *argv[])
     Apriori apriori(file, minSup, sep, numCores, output);
     apriori.mine();
     apriori.printResults();
+    apriori.save(output);
 
     return 0;
 }

@@ -92,10 +92,10 @@ if __name__ == '__main__':
     # obj.mine()
     # obj.printResults()
     
-    apriori = Apriori("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet')
-    apriori.mine()
-    apriori.printResults()
+    # apriori = Apriori("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet')
+    # apriori.mine()
+    # apriori.printResults()
     
-    apriori = Apriori("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv", 20, '\t', 'csv')
+    apriori = Apriori("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv", 1000, '\t', 'csv')
     apriori.mine()
     apriori.printResults()
