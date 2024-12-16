@@ -306,9 +306,9 @@ class ParallelFPGrowth(FPGrowth):
 
 
 if __name__ == "__main__":
-    # file = "/home/tarun/cuPAMI/datasets/Transactional_pumsb.csv"
-    # sep = '\t'
-    # minSup = 38000
+    file = "/home/tarun/cuPAMI/datasets/Transactional_pumsb.csv"
+    sep = '\t'
+    minSup = 38000
     outFile = "patterns.txt"
     
     # obj = ParallelFPGrowth(file, minSup, sep)
@@ -317,9 +317,9 @@ if __name__ == "__main__":
     
 
     
-    file = "/home/tarun/cuPAMI/datasets/Transactional_retail.csv"
-    sep = '\t'
-    minSup = 10
+    # file = "/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv"
+    # sep = '\t'
+    # minSup = 10
     
     
     obj = FPGrowth(file, minSup, sep)
