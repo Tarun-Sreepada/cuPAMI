@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <set>
+#include <unordered_set>
 #include <map>
 #include <string>
 #include <sstream>
@@ -47,7 +48,7 @@ private:
     int minSup;
     char sep;
     int numCores;
-    std::unordered_map<std::string, std::vector<int>> indices_dict;
+    std::unordered_map<std::string, std::unordered_set<int>> indices_dict;
     std::vector<std::pair<std::vector<std::string>, int>> Patterns;
     std::string output;
     double runtime;
@@ -115,20 +116,31 @@ private:
             for (auto &kv : ldict)
             {
                 auto &global_vec = indices_dict[kv.first];
-                // Insert all line indices from this local dict
-                global_vec.insert(global_vec.end(), kv.second.begin(), kv.second.end());
+                global_vec.insert(kv.second.begin(), kv.second.end());
             }
-        }
-
-        // Step 4: Sort each list of indices
-        for (auto &[key, indices] : indices_dict)
-        {
-            std::sort(indices.begin(), indices.end());
         }
     }
 
-    void parallel_mine_step(const std::vector<std::pair<std::vector<std::string>, std::vector<int>>> &cands,
-                            std::vector<std::pair<std::vector<std::string>, std::vector<int>>> &local_nCands,
+    void unordered_set_intersection(const std::unordered_set<int> &a, const std::unordered_set<int> &b, std::unordered_set<int> &result)
+    {
+        // find the smaller set
+        if (a.size() > b.size())
+        {
+            unordered_set_intersection(b, a, result);
+            return;
+        }
+
+        for (const auto &x : a)
+        {
+            if (b.find(x) != b.end())
+            {
+                result.insert(x);
+            }
+        }
+    }
+
+    void parallel_mine_step(const std::vector<std::pair<std::vector<std::string>, std::unordered_set<int>>> &cands,
+                            std::vector<std::pair<std::vector<std::string>, std::unordered_set<int>>> &local_nCands,
                             size_t start, size_t end)
     {
         for (size_t i = start; i < end; ++i)
@@ -139,11 +151,8 @@ private:
                 const auto &cand_j = cands[j].first;
                 if (std::equal(cand_i.begin(), cand_i.end() - 1, cand_j.begin()) && cand_i.back() != cand_j.back())
                 {
-                    std::vector<int> intersection;
-                    std::set_intersection(cands[i].second.begin(), cands[i].second.end(),
-                                          cands[j].second.begin(), cands[j].second.end(),
-                                          std::back_inserter(intersection));
-
+                    std::unordered_set<int> intersection;
+                    unordered_set_intersection(cands[i].second, cands[j].second, intersection);
                     if (intersection.size() >= minSup)
                     {
                         std::vector<std::string> nCand = cand_i;
@@ -169,15 +178,9 @@ public:
         // print time tot read
         std::cout << "Time to read: " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count() << " seconds\n";
 
-        // Sort the indices_dict in descending order of support
-        std::vector<std::pair<std::string, std::vector<int>>> sorted_indices_dict(indices_dict.begin(), indices_dict.end());
-        std::sort(sorted_indices_dict.begin(), sorted_indices_dict.end(),
-                  [](const auto &a, const auto &b)
-                  { return a.second.size() > b.second.size(); });
-
         // Step 2: Initialize candidates with single-item patterns
-        std::vector<std::pair<std::vector<std::string>, std::vector<int>>> cands;
-        for (const auto &[key, indices] : sorted_indices_dict)
+        std::vector<std::pair<std::vector<std::string>, std::unordered_set<int>>> cands;
+        for (const auto &[key, indices] : indices_dict)
         {
             if (indices.size() >= minSup)
             {
@@ -186,17 +189,21 @@ public:
             }
         }
 
+        // sort candidates in descending order of support
+        std::sort(cands.begin(), cands.end(), [](const auto &a, const auto &b) {
+            return a.second.size() > b.second.size();
+        });
+
         // Step 3: Iteratively mine patterns
         while (!cands.empty())
         {
-            std::vector<std::pair<std::vector<std::string>, std::vector<int>>> nCands;
+            std::vector<std::pair<std::vector<std::string>, std::unordered_set<int>>> nCands;
 
-            // const size_t num_threads = std::min(static_cast<size_t>(numCores), std::thread::hardware_concurrency());
             const size_t num_threads = numCores;
             const size_t chunk_size = (cands.size() + num_threads - 1) / num_threads;
 
             std::vector<std::thread> threads;
-            std::vector<std::vector<std::pair<std::vector<std::string>, std::vector<int>>>> thread_nCands(num_threads);
+            std::vector<std::vector<std::pair<std::vector<std::string>, std::unordered_set<int>>>> thread_nCands(num_threads);
 
             for (size_t t = 0; t < num_threads; ++t)
             {

@@ -164,6 +164,8 @@ class FPGrowth:
         start_time = time.time()
 
         self.read_file()
+        print("Time to read: ", time.time() - start_time)
+
 
         root = Node([], 0, None)
         item_nodes = {}
@@ -175,6 +177,8 @@ class FPGrowth:
                     item_nodes[item] = [set(), 0]
                 item_nodes[item][0].add(node)
                 item_nodes[item][1] += count
+        
+        print("Time to create tree: ", time.time() - start_time)
         
         self._recursive_mine(root, item_nodes)
             
@@ -207,19 +211,6 @@ if __name__ == "__main__":
     minSup = 38000
     outFile = "patterns.txt"
     
-    # obj = FPGrowth(file, minSup, sep)
-    # obj.mine()
-    # obj.printResults()
-    # obj.save_patterns(outFile, sep)
-    
-    
-    # from PAMI.frequentPattern.basic.FPGrowth import FPGrowth as FPGrowth2
-    
-    # obj2 = FPGrowth2(file, minSup, sep)
-    # obj2.mine()
-    # obj2.printResults()
-    # obj2.save(outFile)
-
 
 class ParallelFPGrowth(FPGrowth):
     def _parallel_recursive_mine(self, args) -> Dict[Tuple[Any, ...], int]:
@@ -306,28 +297,13 @@ class ParallelFPGrowth(FPGrowth):
 
 
 if __name__ == "__main__":
-    file = "/home/tarun/cuPAMI/datasets/Transactional_pumsb.csv"
-    sep = '\t'
-    minSup = 38000
-    outFile = "patterns.txt"
-    
-    # obj = ParallelFPGrowth(file, minSup, sep)
-    # obj.mine()
-    # obj.printResults()
-    
 
-    
-    # file = "/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv"
-    # sep = '\t'
-    # minSup = 10
-    
+    file = "/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.csv"
+    sep = '\t'
+    minSup = 10
+    outFile = "patterns.txt"
     
     obj = FPGrowth(file, minSup, sep)
     obj.mine()
     obj.printResults()
     obj.save_patterns(outFile, sep)
-    
-    
-    # obj = ParallelFPGrowth(file, minSup, sep)
-    # obj.mine()
-    # obj.printResults()

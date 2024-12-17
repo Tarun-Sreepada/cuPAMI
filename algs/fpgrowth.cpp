@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <numeric>
 #include <chrono>
@@ -13,6 +14,8 @@
 #include <tuple>
 #include <omp.h>
 #include <unistd.h>
+#include <mutex>
+#include <functional>
 
 long print_memory_usage()
 {
@@ -54,29 +57,41 @@ struct Node
 
     Node *add_child(const std::string &item, int count = 1)
     {
-        if (children.find(item) == children.end())
+        auto [it, inserted] = children.try_emplace(item, nullptr);
+
+        if (inserted)
         {
-            children[item] = new Node({item}, count, this);
+            // If the child was newly added
+            it->second = new Node({item}, count, this);
         }
         else
         {
-            children[item]->count += count;
+            // If the child already exists, increment its count
+            it->second->count += count;
         }
-        return children[item];
+
+        return it->second;
     }
 
     std::pair<std::vector<std::string>, int> traverse()
     {
         std::vector<std::string> transaction;
+        transaction.reserve(32);
         int node_count = count;
         Node *curr = parent;
-        while (curr && curr->parent)
+        for (Node *curr = parent; curr && curr->parent; curr = curr->parent)
         {
-            transaction.push_back(curr->item.front());
-            curr = curr->parent;
+            transaction.emplace_back(curr->item.front());
         }
-        std::reverse(transaction.begin(), transaction.end());
-        return {transaction, node_count};
+        return {std::move(transaction), node_count};
+    }
+
+    ~Node()
+    {
+        for (auto &[_, child] : children)
+        {
+            delete child; // Recursively delete all child nodes
+        }
     }
 };
 
@@ -98,11 +113,23 @@ char parse_separator(const std::string &arg)
     exit(EXIT_FAILURE);
 }
 
+struct VectorHash
+{
+    std::size_t operator()(const std::vector<std::string> &v) const
+    {
+        std::hash<std::string> hasher;
+        std::size_t seed = 0;
+        for (const auto &s : v)
+        {
+            seed ^= hasher(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
 class FPGrowth
 {
 private:
-    std::vector<std::vector<std::string>> database;
-    std::map<std::string, int> item_count;
     std::map<std::vector<std::string>, int> final_patterns;
     std::string input_file;
     char separator;
@@ -110,9 +137,11 @@ private:
     double runtime;
     int num_cores;
 
-    void create_itemsets()
+    std::tuple<std::unordered_map<std::vector<std::string>, int, VectorHash>, std::unordered_map<std::string, int>>
+    create_itemsets()
     {
-        database.clear();
+        std::unordered_map<std::string, int> item_count;
+
         std::ifstream file(input_file);
         if (!file.is_open())
         {
@@ -126,7 +155,6 @@ private:
             while (std::getline(file, line))
             {
                 // remove carriage return
-                line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
                 if (!line.empty())
                 {
                     lines.push_back(line);
@@ -136,43 +164,50 @@ private:
         file.close();
 
         // Prepare thread-local structures
-        std::vector<std::vector<std::string>> local_transactions(lines.size());
         int max_threads = omp_get_max_threads();
-        std::vector<std::map<std::string, int>> local_counts(max_threads);
+        std::vector<std::unordered_map<std::string, int>> local_counts(max_threads);
+        std::vector<
+            std::vector<std::pair<std::vector<std::string>, int>>>
+            local_database(max_threads);
 
-#pragma omp parallel for schedule(dynamic)
-        for (int i = 0; i < (int)lines.size(); i++)
+#pragma omp parallel
         {
-            std::string line = lines[i];
-            // Handle UTF-8 BOM
-            if (!line.empty() && line[0] == '\xEF')
-            {
-                line.erase(0, 3);
-            }
 
-            std::stringstream ss(line);
-            std::string item;
-            std::vector<std::string> transaction;
-            while (std::getline(ss, item, separator))
+#pragma omp for
+            for (int i = 0; i < (int)lines.size(); i++)
             {
-                // Trim whitespace
-                item.erase(item.find_last_not_of(" \t\n\r") + 1);
-                item.erase(0, item.find_first_not_of(" \t\n\r"));
-                if (item.empty())
-                {
-                    continue;
-                }
-                transaction.push_back(item);
+                std::string line = lines[i];
 
-                // Update thread-local item counts
                 int tid = omp_get_thread_num();
-                local_counts[tid][item]++;
+
+                // remove carriage return
+                if (!line.empty() && line.back() == '\r')
+                {
+                    line.pop_back();
+                }
+
+                std::stringstream ss(line);
+                std::string item;
+                std::vector<std::string> transaction;
+                while (std::getline(ss, item, separator))
+                {
+                    // Trim whitespace
+                    item.erase(item.find_last_not_of(" \t\n\r") + 1);
+                    item.erase(0, item.find_first_not_of(" \t\n\r"));
+                    if (item.empty())
+                    {
+                        continue;
+                    }
+                    transaction.push_back(item);
+
+                    // Update thread-local item counts
+                    local_counts[tid][item]++;
+                }
+                local_database[tid].push_back({std::move(transaction), 1});
             }
-            local_transactions[i] = std::move(transaction);
         }
 
-// Merge thread-local counts into global item_count
-#pragma omp critical
+        // Merge thread-local item counts
         for (auto &local_map : local_counts)
         {
             for (auto &kv : local_map)
@@ -181,232 +216,111 @@ private:
             }
         }
 
-        // Move the transactions into the global database
-        database = std::move(local_transactions);
-    }
+        // Filter and sort transactions based on min_support
+        std::unordered_map<std::vector<std::string>, int, VectorHash> database;
 
-    std::tuple<Node *, std::map<std::string, std::pair<std::set<Node *>, int>>> construct(const std::map<std::string, int> &items)
-    {
-        std::map<std::string, std::pair<std::set<Node *>, int>> item_node;
-        Node *root = new Node({}, 0, nullptr);
-        for (const auto &transaction : database)
+        for (const auto &ldb : local_database)
         {
-            Node *curr_node = root;
-            std::vector<std::string> sorted_items;
-            for (const auto &it : transaction)
+            for (const auto &[transaction, count] : ldb)
             {
-                if (items.find(it) != items.end())
-                {
-                    sorted_items.push_back(it);
-                }
-            }
-
-            // Sort the items in descending order of frequency
-            std::sort(sorted_items.begin(), sorted_items.end(), [&](const std::string &a, const std::string &b)
-                      { return items.at(a) > items.at(b); });
-
-            for (const auto &it : sorted_items)
-            {
-                curr_node = curr_node->add_child(it);
-                item_node[it].first.insert(curr_node);
-                item_node[it].second++;
-            }
-            
-        }
-        return std::make_tuple(root, item_node);
-    }
-
-    void recursive_mining(Node *root, const std::map<std::string, std::pair<std::set<Node *>, int>> &item_node, int min_support)
-    {
-
-        // Collect items that meet the minimum support before parallelizing
-        std::vector<std::pair<std::string, int>> freq_items;
-        for (const auto &kv : item_node)
-        {
-            if (kv.second.second >= min_support)
-            {
-                freq_items.push_back({kv.first, kv.second.second});
-            }
-        }
-
-        // Sort items by descending frequency
-        std::sort(freq_items.begin(), freq_items.end(), [](const auto &a, const auto &b)
-                  { return a.second > b.second; });
-
-        std::map<std::vector<std::string>, int> local_patterns;
-
-#pragma omp parallel
-        {
-            std::map<std::vector<std::string>, int> thread_local_patterns;
-
-#pragma omp for nowait
-            for (int i = 0; i < (int)freq_items.size(); i++)
-            {
-                const std::string &item = freq_items[i].first;
-                const auto &node_info = item_node.at(item);
-
-                // Extend pattern
-                std::vector<std::string> new_itemset = root->item;
-                new_itemset.push_back(item);
-                thread_local_patterns[new_itemset] = node_info.second;
-
-                // Build conditional pattern base
-                std::map<std::string, int> item_count;
-                std::vector<std::pair<std::vector<std::string>, int>> transactions;
-
-                for (Node *node : node_info.first)
-                {
-                    auto [transaction, count] = node->traverse();
-                    if (transaction.empty())
-                        continue; // optionally skip empty
-                    transactions.emplace_back(transaction, count);
-                    for (const auto &trans_item : transaction)
-                    {
-                        item_count[trans_item] += count;
-                    }
-                }
-
-                // Filter by min_support
-                for (auto it = item_count.begin(); it != item_count.end();)
-                {
-                    if (it->second < min_support)
-                        it = item_count.erase(it);
-                    else
-                        ++it;
-                }
-
-                if (item_count.empty())
-                {
-                    // No recursion needed if no conditional items remain
+                if (transaction.empty())
                     continue;
-                }
 
-                // Construct conditional FP-tree
-                Node *new_root = new Node(new_itemset, 0, nullptr);
-                std::map<std::string, std::pair<std::set<Node *>, int>> new_item_node;
-
-                for (const auto &[transaction, count] : transactions)
-                {
-                    Node *curr_node = new_root;
-                    std::vector<std::string> filtered_transaction;
-                    for (const auto &it : transaction)
-                    {
-                        if (item_count.find(it) != item_count.end())
-                            filtered_transaction.push_back(it);
-                    }
-
-                    // Sort by descending frequency
-                    std::sort(filtered_transaction.begin(), filtered_transaction.end(), [&](const std::string &a, const std::string &b)
-                              { return item_count[a] > item_count[b]; });
-
-                    for (const auto &it : filtered_transaction)
-                    {
-                        curr_node = curr_node->add_child(it, count);
-                        new_item_node[it].first.insert(curr_node);
-                        new_item_node[it].second += count;
-                    }
-                }
-
-                // Recursively mine conditional FP-tree if not empty
-                if (!new_item_node.empty())
-                {
-                    // Use a non-parallel recursion for the conditional tree or replicate logic as needed
-                    FPGrowth sub_fptree("", min_support, separator, num_cores);
-                    sub_fptree.sequential_recursive_mining(new_root, new_item_node, min_support, thread_local_patterns);
-                }
-            }
-
-#pragma omp critical
-            {
-                // Merge thread-local patterns into local_patterns
-                for (const auto &kv : thread_local_patterns)
-                {
-                    local_patterns[kv.first] += kv.second;
-                }
-            }
-        }
-
-        // Merge local_patterns into final_patterns
-        for (const auto &kv : local_patterns)
-        {
-            final_patterns[kv.first] = kv.second;
-        }
-    }
-
-    // A helper function to allow recursion without re-using the outer class's parallelization setup.
-    // This can be used for recursive calls within a parallel region.
-    void sequential_recursive_mining(Node *root, const std::map<std::string, std::pair<std::set<Node *>, int>> &item_node,
-                                     int min_support, std::map<std::vector<std::string>, int> &local_patterns)
-    {
-        for (const auto &[item, node_info] : item_node)
-        {
-            if (node_info.second < min_support)
-            {
-                continue;
-            }
-
-            std::vector<std::string> new_itemset = root->item;
-            new_itemset.push_back(item);
-            local_patterns[new_itemset] = node_info.second;
-
-            std::map<std::string, int> item_count;
-            std::vector<std::pair<std::vector<std::string>, int>> transactions;
-
-            for (Node *node : node_info.first)
-            {
-                auto [transaction, count] = node->traverse();
-                transactions.emplace_back(transaction, count);
-                for (const auto &trans_item : transaction)
-                {
-                    item_count[trans_item] += count;
-                }
-            }
-
-            for (auto it = item_count.begin(); it != item_count.end();)
-            {
-                if (it->second < min_support)
-                {
-                    it = item_count.erase(it);
-                }
-                else
-                {
-                    ++it;
-                }
-            }
-
-            if (item_count.empty())
-            {
-                continue;
-            }
-
-            Node *new_root = new Node(new_itemset, 0, nullptr);
-            std::map<std::string, std::pair<std::set<Node *>, int>> new_item_node;
-
-            for (const auto &[transaction, count] : transactions)
-            {
-                Node *curr_node = new_root;
                 std::vector<std::string> filtered_transaction;
+                filtered_transaction.reserve(transaction.size());
                 for (const auto &item : transaction)
                 {
-                    if (item_count.find(item) != item_count.end())
+                    if (item_count[item] >= min_support)
                     {
                         filtered_transaction.push_back(item);
                     }
                 }
-                std::sort(filtered_transaction.begin(), filtered_transaction.end(), [&](const std::string &a, const std::string &b)
-                          { return item_count[a] > item_count[b]; });
 
-                for (const auto &it : filtered_transaction)
+                if (!filtered_transaction.empty())
                 {
-                    curr_node = curr_node->add_child(it, count);
-                    new_item_node[it].first.insert(curr_node);
-                    new_item_node[it].second += count;
+                    std::sort(filtered_transaction.begin(), filtered_transaction.end());
+                    database[filtered_transaction] += count;
                 }
             }
+        }
 
-            if (!new_item_node.empty())
+        return std::make_tuple(std::move(database), std::move(item_count));
+    }
+
+    std::tuple<Node *, std::unordered_map<std::string, std::pair<std::unordered_set<Node *>, int>>> construct(
+        std::unordered_map<std::vector<std::string>, int, VectorHash> &database,
+        const std::unordered_map<std::string, int> &item_counts)
+    {
+        std::unordered_map<std::string, std::pair<std::unordered_set<Node *>, int>> item_node;
+        Node *global_root = new Node({}, 0, nullptr);
+
+        for (const auto &[transaction, count] : database)
+        {
+            if (transaction.empty())
+                continue;
+
+            Node *curr = global_root;
+            for (const auto &item : transaction)
             {
-                sequential_recursive_mining(new_root, new_item_node, min_support, local_patterns);
+                curr = curr->add_child(item, count);
+                item_node[item].first.insert(curr);
+                item_node[item].second += count;
+            }
+        }
+
+        return std::make_tuple(std::move(global_root), std::move(item_node));
+    }
+
+    void sequential_mining(Node *root, std::unordered_map<std::string, std::pair<std::unordered_set<Node *>, int>> &item_nodes, std::vector<std::string> pattern)
+    {
+// Shared structure for final patterns
+#pragma omp parallel
+#pragma omp single nowait
+        {
+            for (const auto &[item, node_info] : item_nodes)
+            {
+                const auto &[nodes, count] = node_info;
+
+                // Process only items meeting the minimum support threshold
+                if (count >= min_support)
+                {
+#pragma omp task firstprivate(item, nodes, count, pattern)
+                    {
+                        std::vector<std::string> new_pattern = pattern;
+                        new_pattern.push_back(item);
+
+// Update the final_patterns in a thread-safe manner
+#pragma omp critical
+                        {
+                            final_patterns[new_pattern] = count;
+                        }
+
+                        // Thread-local structures for transaction databases and item counts
+                        std::unordered_map<std::vector<std::string>, int, VectorHash> new_database;
+                        std::unordered_map<std::string, int> new_item_counts;
+
+                        // Traverse nodes and build the new database
+                        for (Node *node : nodes)
+                        {
+                            auto [transaction, node_count] = node->traverse();
+                            new_database[transaction] += node_count;
+
+                            for (const auto &item : transaction)
+                            {
+                                new_item_counts[item] += node_count;
+                            }
+                        }
+
+                        // Construct the conditional FP-tree for the new database
+                        auto [new_root, new_item_nodes] = construct(new_database, new_item_counts);
+
+                        // Recursive call to process the next level of the tree
+                        sequential_mining(new_root, new_item_nodes, new_pattern);
+
+                        // Cleanup memory for the newly constructed root
+                        delete new_root;
+                    }
+                }
             }
         }
     }
@@ -418,30 +332,20 @@ public:
     void mine()
     {
         auto start = std::chrono::high_resolution_clock::now();
+        omp_set_num_threads(num_cores);
 
-        create_itemsets();
+        // create_itemsets();
+        auto [db, ic] = create_itemsets();
 
         // print time to read
         std::cout << "Time to read: " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count() << " seconds\n";
 
-        for (auto it = item_count.begin(); it != item_count.end();)
-        {
-            if (it->second < min_support)
-            {
-                it = item_count.erase(it);
-            }
-            else
-            {
-                ++it;
-            }
-        }
+        auto [root, item_nodes] = construct(db, ic);
+        std::cout << "Time to construct: " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count() << " seconds\n";
 
-        auto [root, item_node] = construct(item_count);
+        sequential_mining(root, item_nodes, {});
 
-        // Set the number of threads
-        omp_set_num_threads(num_cores);
-
-        recursive_mining(root, item_node, min_support);
+        delete root;
 
         auto end = std::chrono::high_resolution_clock::now();
         runtime = std::chrono::duration<double>(end - start).count();
