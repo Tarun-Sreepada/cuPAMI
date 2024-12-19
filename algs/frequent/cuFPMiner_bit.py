@@ -7,7 +7,6 @@ import cudf
 import os
 
 
-
 get_items_per_line = cp.RawKernel(r'''
                                   
 extern "C" __global__ void get_items_per_line(const char *data,
@@ -66,7 +65,7 @@ extern "C" __global__ void convert_char_file_to_int_file(
     int bufferIndex = 0;
 
     int j = itemsPerLine[tid];
-    start++;
+    if (tid != 0) start++;
     for (int k = start; k < end; k++) {
         if (data[k] != seperator) {
             buffer[bufferIndex++] = data[k];
@@ -101,6 +100,7 @@ __global__ void convert_to_bitset(const int *data, const int *indexes, int numLi
 }
     
 ''', 'convert_to_bitset')
+
     
 number_of_new_candidates_to_generate = cp.RawKernel(
     r"""
@@ -147,6 +147,8 @@ void number_of_new_candidates_to_generate(
 )
 
 
+
+
 write_the_new_candidates = cp.RawKernel(
     r"""
 
@@ -158,12 +160,12 @@ void write_the_new_candidates(
 )
 {
     uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid > 0) return;
-    int index = 0;
-    for (int i = 0; i < numCands; i++)
+    uint32_t totalThreads = gridDim.x * blockDim.x;
+
+    for (uint32_t i = tid; i < numCands; i += totalThreads)
     {
         if (newCandidatesIndex[i] == newCandidatesIndex[i + 1]) continue;
-
+        int index = newCandidatesIndex[i] * (candSize + 1);
         int numNewCands = newCandidatesIndex[i + 1] - newCandidatesIndex[i];
 
         for (int j = 0; j < numNewCands; j++)
@@ -175,12 +177,13 @@ void write_the_new_candidates(
             newCandidates[index++] = candidates[(i + 2 + j) * candSize - 1];
         }
     }
-    
 }
                             
                             """,
     "write_the_new_candidates",
 )
+
+
 
 
 calc_support = cp.RawKernel(r'''
@@ -407,23 +410,7 @@ class cuFPMiner_bit:
         
 if __name__ == "__main__":
     
-    # obj = cuFPMiner_bit("/home/tarun/cuPAMI/algs/lines.txt", 2200000, ' ', 'csv', 'managed')
-    # obj.mine()
-    # obj.printResults()
-    
-    
-    
-    
-    # obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_pumsb.csv", 40000, '\t', 'csv', 'device')
-    # obj.mine()
-    # obj.printResults()
-    
-    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_pumsb.parquet", 39000, '\t', 'parquet', 'device')
-    obj.mine()
-    obj.printResults()
-    obj.savePatterns("patterns.txt")
-    
-    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/Transactional_T10I4D100K.parquet", 20, '\t', 'parquet', 'device')
+    obj = cuFPMiner_bit("/home/tarun/cuPAMI/datasets/transactional/Transactional_kosarak.csv", 2000, '\t', 'csv', 'device')
     obj.mine()
     obj.printResults()
     

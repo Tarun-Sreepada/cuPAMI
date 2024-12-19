@@ -1,0 +1,21 @@
+algorithm,file,min_sup,runtime,patterns,memory,time_to_read
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_chess1.csv,2000,0.09688663482666016,166432,1273.0,0.018581867218017578
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_chess1.csv,2000,1.0598020553588867,166432,1268.25,0.0023279190063476562
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_chess1.csv,2000,0.10330772399902344,166432,1254.375,0.0021822452545166016
+fpgrowth 16 threads,../../datasets/transactional/Transactional_chess1.csv,2000,0.61895,166432,633,0.0241614
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_chess1.csv,1900,0.10427737236022949,278477,1248.4375,0.0019752979278564453
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_chess1.csv,1900,1.795445442199707,278477,1237.5,0.0019648075103759766
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_chess1.csv,1900,0.16635441780090332,278477,1223.4375,0.002059459686279297
+fpgrowth 16 threads,../../datasets/transactional/Transactional_chess1.csv,1900,1.40734,278477,662,0.0192672
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_chess1.csv,1800,0.15038824081420898,464289,1339.8125,0.0019259452819824219
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_chess1.csv,1800,2.712127685546875,464289,1313.875,0.002008199691772461
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_chess1.csv,1800,0.254575252532959,464289,1262.5625,0.0017497539520263672
+fpgrowth 16 threads,../../datasets/transactional/Transactional_chess1.csv,1800,2.30086,464289,712,0.019719
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_chess1.csv,1700,0.2463536262512207,767004,1220.125,0.0016024112701416016
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_chess1.csv,1700,4.748127698898315,767004,1190.8125,0.0019273757934570312
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_chess1.csv,1700,0.4795217514038086,767004,1276.9375,0.0024683475494384766
+fpgrowth 16 threads,../../datasets/transactional/Transactional_chess1.csv,1700,3.75977,767004,798,0.0145795
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_chess1.csv,1600,0.41262006759643555,1260392,1231.0625,0.0019443035125732422
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_chess1.csv,1600,8.695505619049072,1260392,1286.5,0.0032455921173095703
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_chess1.csv,1600,0.8100535869598389,1260392,1235.5625,0.0033173561096191406
+fpgrowth 16 threads,../../datasets/transactional/Transactional_chess1.csv,1600,6.5752,1260392,931,0.0139841

@@ -1,0 +1,16 @@
+algorithm,file,min_sup,runtime,patterns,memory,time_to_read
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,50,0.12770986557006836,53361,1149.9375,0.006131887435913086
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,50,5.675256729125977,53361,1109.5,0.005355358123779297
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,50,1.4830431938171387,53361,1077.5,0.005633831024169922
+fpgrowth 16 threads,../../datasets/transactional/Transactional_T10I4D100K.csv,50,1.71944,53361,564,0.132439
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,25,0.313443660736084,96895,1173.5,0.004728078842163086
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,25,19.34042477607727,96895,1217.5,0.004995584487915039
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,25,6.064259767532349,96895,1137.5,0.00569462776184082
+fpgrowth 16 threads,../../datasets/transactional/Transactional_T10I4D100K.csv,25,1.95256,96895,574,0.135851
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,10,1.3528544902801514,410666,1313.5,0.005790233612060547
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,10,80.12837243080139,410666,1432.6875,0.00489044189453125
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,10,32.47803235054016,410666,1460.875,0.8403973579406738
+fpgrowth 16 threads,../../datasets/transactional/Transactional_T10I4D100K.csv,10,2.73475,410666,655,0.132127
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,5,4.651828050613403,1914435,1932.9375,0.008801937103271484
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_T10I4D100K.csv,5,95.86646270751953,1914435,1653.1875,0.005487203598022461
+fpgrowth 16 threads,../../datasets/transactional/Transactional_T10I4D100K.csv,5,4.4157,1914435,1060,0.133252

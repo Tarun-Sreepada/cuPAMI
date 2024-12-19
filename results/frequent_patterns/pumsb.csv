@@ -1,4 +1,18 @@
 algorithm,file,min_sup,runtime,patterns,memory,time_to_read
-cuFPMiner_bit_csv,../../datasets/transactional/Transactional_pumsb.csv,41000,0.9978036880493164,36461,702.3125,0.9403772354125977
-cuFPMiner_hash_csv,../../datasets/transactional/Transactional_pumsb.csv,41000,3.209744691848755,36461,749.75,0.05614805221557617
-cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_pumsb.csv,41000,0.2746853828430176,36461,698.6875,0.04691576957702637
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_pumsb.csv,39000,0.9889974594116211,165738,1164.75,0.9077854156494141
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_pumsb.csv,39000,1.0543551445007324,165738,1197.6875,0.05725812911987305
+fpgrowth 16 threads,../../datasets/transactional/Transactional_pumsb.csv,39000,0.669866,165835,594,0.249263
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_pumsb.csv,38000,0.1847376823425293,316229,1265.3125,0.048038482666015625
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_pumsb.csv,38000,2.010913848876953,316229,1187.9375,0.047009944915771484
+fpgrowth 16 threads,../../datasets/transactional/Transactional_pumsb.csv,38000,1.01287,316312,635,0.262038
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_pumsb.csv,37000,0.2919280529022217,597222,1253.1875,0.04886269569396973
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_pumsb.csv,37000,3.8117949962615967,597222,1161.9375,0.04776167869567871
+fpgrowth 16 threads,../../datasets/transactional/Transactional_pumsb.csv,37000,1.57263,597459,712,0.247063
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_pumsb.csv,36000,0.47471117973327637,1084505,1253.75,0.04656100273132324
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_pumsb.csv,36000,7.074241876602173,1084505,1135.375,0.04768180847167969
+fpgrowth 16 threads,../../datasets/transactional/Transactional_pumsb.csv,36000,3.37662,1084962,840,0.268856
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_pumsb.csv,35000,0.7876250743865967,1881674,1198.875,0.050345420837402344
+fpgrowth 16 threads,../../datasets/transactional/Transactional_pumsb.csv,35000,7.02341,1882190,1054,0.287322
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_pumsb.csv,39000,15.302126169204712,165738,1246.5625,0.9081223011016846
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_pumsb.csv,38000,28.415406227111816,316229,1185.5625,0.04417848587036133
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_pumsb.csv,35000,21.379729986190796,1881674,1327.5,0.06234908103942871

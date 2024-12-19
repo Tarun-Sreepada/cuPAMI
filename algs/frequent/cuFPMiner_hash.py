@@ -175,6 +175,9 @@ void number_of_new_candidates_to_generate(
 )
 
 
+
+
+
 write_the_new_candidates = cp.RawKernel(
     r"""
 
@@ -186,12 +189,12 @@ void write_the_new_candidates(
 )
 {
     uint32_t tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid > 0) return;
-    int index = 0;
-    for (int i = 0; i < numCands; i++)
+    uint32_t totalThreads = gridDim.x * blockDim.x;
+
+    for (uint32_t i = tid; i < numCands; i += totalThreads)
     {
         if (newCandidatesIndex[i] == newCandidatesIndex[i + 1]) continue;
-
+        int index = newCandidatesIndex[i] * (candSize + 1);
         int numNewCands = newCandidatesIndex[i + 1] - newCandidatesIndex[i];
 
         for (int j = 0; j < numNewCands; j++)
@@ -203,7 +206,6 @@ void write_the_new_candidates(
             newCandidates[index++] = candidates[(i + 2 + j) * candSize - 1];
         }
     }
-    
 }
                             
                             """,
