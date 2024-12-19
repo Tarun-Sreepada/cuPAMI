@@ -13,7 +13,8 @@ class AbstractRead(ABC):
         self.num_cols = 0
         self.custom_memory = {}
         self.runtime = None  # Placeholder for runtime
-        self.get_num_cols()
+        if self.file.endswith(".csv"):
+            self.get_num_cols()
 
     def get_num_cols(self):
         """
