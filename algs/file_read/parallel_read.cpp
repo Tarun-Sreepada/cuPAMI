@@ -63,7 +63,7 @@ void readFileAndProcess(const std::string& file, char delimiter, int numCores) {
 
     // Print results
     std::cout << "Time taken: " << elapsed.count() << " seconds" << std::endl;
-    std::cout << "Memory used (in program): " << memoryUsed / 1024.0 << " KB" << std::endl;
+    std::cout << "Memory used (in program): " << memoryUsed << " KB" << std::endl;
     std::cout << "Peak memory (total process): " << peakMemory << " KB" << std::endl;
 }
 

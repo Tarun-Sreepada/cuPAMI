@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# Compile the C++ program
-g++ -O3 -o file_generator file_generator.cpp
+# get this shell script's directory
+current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+g++ -O3 -o "${current_dir}/file_generator" "${current_dir}/file_generator.cpp"
 
-save_dir="../datasets/synthetic/transactional"
+save_dir="${current_dir}/../datasets/synthetic/transactional"
 # Create the synthetic directory if it does not exist
 mkdir -p $save_dir
-
-
 
 # Check if compilation was successful
 if [[ $? -ne 0 ]]; then
@@ -16,9 +15,15 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
-# File sizes and shapes
-sizes=("1000M" "1100M" "1200M" "1300M")
-shapes=("square" "triangle")
+file_gen_loc="${current_dir}/file_generator"
+
+
+sizes=("1000M" "1250M" "1500M" "1750M" "2000M")
+shapes=("square")
+
+# sizes=("700M" "800M" "900M" "1000M" "1100M" "1200M")
+# shapes=("triangle")
+
 delimiter=","
 
 # Generate files
@@ -31,9 +36,9 @@ for size in "${sizes[@]}"; do
 
         echo "Generating ${fileName}..."
         if [[ "$shape" == "square" ]]; then
-            echo "$fileName" | ./file_generator $fileName $size $delimiter 1 > /dev/null
+            echo "$fileName" | $file_gen_loc $fileName $size $delimiter 1 > /dev/null
         elif [[ "$shape" == "triangle" ]]; then
-            echo "$fileName" | ./file_generator $fileName $size $delimiter 2 > /dev/null
+            echo "$fileName" | $file_gen_loc $fileName $size $delimiter 2 > /dev/null
         fi
     done
 done
