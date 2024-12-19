@@ -78,10 +78,12 @@ extern "C" __global__ void convert_char_file_to_int_file(
 ''', 'convert_char_file_to_int_file')
 
 class gpu_read(abstract.AbstractRead):
-    def __init__(self, file, delimiter, warmup=False):
+    def __init__(self, file, delimiter = ',', warmup = False):
         super().__init__(file, delimiter)
         self.warmup = warmup
     def read(self):
+        
+        manual = 0
         self.block_size = 256
         
         #warm up kvikio
@@ -103,6 +105,8 @@ class gpu_read(abstract.AbstractRead):
         
         
         file_data = cp.empty(file_size, dtype=cp.uint8)
+        manual += file_size
+        
         with kvikio.CuFile(self.file, "r") as f:
             f.read(file_data)
             
@@ -116,9 +120,14 @@ class gpu_read(abstract.AbstractRead):
         newline_indices = cp.concatenate([cp.array([0]), newline_indices])
         newline_indices = cp.concatenate([newline_indices, cp.array([file_size])])
         newline_indices = cp.sort(newline_indices).astype(cp.int32)
+        manual += newline_indices.nbytes
+        
         
         # total number of items
         items_per_line = cp.zeros(number_of_transactions + 1, dtype=cp.int32)
+        manual += items_per_line.nbytes
+        
+
         get_items_per_line((number_of_transactions//self.block_size + 1,), (self.block_size,), (file_data, 
                                                         newline_indices, number_of_transactions, items_per_line, ord(self.delimiter)))
         cp.cuda.Device().synchronize()
@@ -127,9 +136,12 @@ class gpu_read(abstract.AbstractRead):
         items_per_line[0] = 0
         
         parsed_indices = cp.cumsum(items_per_line).astype(cp.int32)
+        manual += parsed_indices.nbytes
         number_of_items = parsed_indices[-1].astype(cp.int32).get()
         
         raw_data = cp.zeros(number_of_items, dtype=cp.int32)
+        manual += raw_data.nbytes
+        
         convert_char_file_to_int_file((number_of_transactions//self.block_size + 1,), (self.block_size,), 
                                       (file_data, newline_indices, number_of_transactions, parsed_indices, raw_data, ord(self.delimiter)))
         
@@ -141,7 +153,11 @@ class gpu_read(abstract.AbstractRead):
         # get memory usage
         end_memory = cp.get_default_memory_pool().used_bytes()
         
-        self.custom_memory["gpu"] = end_memory - start_memory
+        if end_memory < start_memory or end_memory == start_memory:
+            # manually calculate memory usage
+            self.custom_memory["gpu"] = manual
+        else: 
+            self.custom_memory["gpu"] = end_memory - start_memory
         
         return raw_data, parsed_indices
         
@@ -150,12 +166,12 @@ class gpu_read(abstract.AbstractRead):
 if __name__ == "__main__":
     
     cur_dir  = abstract.os.path.dirname(__file__)
-    file = "../../datasets/synthetic/transactional/square_1G.csv"
-    obj = gpu_read(file, ",", warmup=True)
+    file = "../../datasets/synthetic/transactional/square_10M.csv"
+    
     file = abstract.os.path.join(cur_dir, file)
     
-    obj = gpu_read(file, ",")
+    obj = gpu_read(file)
     obj.read()
-    print(obj.getRuntime())
-    print(abstract.bytes_to_mb(obj.getMemory()), "MB")
-    print(abstract.bytes_to_mb(obj.getCustomMemory()["gpu"]), "MB")
+    print(obj.get_runtime())
+    print(abstract.bytes_to_mb(obj.get_memory()), "MB")
+    print(abstract.bytes_to_mb(obj.get_custom_memory()["gpu"]), "MB")

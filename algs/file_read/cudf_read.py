@@ -15,12 +15,12 @@ class cudf_read(abstract.AbstractRead):
 if __name__ == "__main__":
     
     cur_dir  = abstract.os.path.dirname(__file__)
-    file = "../../datasets/synthetic/transactional/square_1G.csv"
+    file = "../../datasets/synthetic/transactional/square_10M.csv"
     
     file = abstract.os.path.join(cur_dir, file)
     
     obj = cudf_read(file, ",")
     obj.read()
-    print(obj.getRuntime())
-    print(abstract.bytes_to_mb(obj.getMemory()), "MB")
-    print(abstract.bytes_to_mb(obj.getCustomMemory()["gpu"]), "MB")
+    print(obj.get_runtime())
+    print(abstract.bytes_to_mb(obj.get_memory()), "MB")
+    print(abstract.bytes_to_mb(obj.get_custom_memory()["gpu"]), "MB")

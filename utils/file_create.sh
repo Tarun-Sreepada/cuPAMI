@@ -17,7 +17,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # File sizes and shapes
-sizes=("1M" "10M" "100M" "1G")
+sizes=("1000M" "1100M" "1200M" "1300M")
 shapes=("square" "triangle")
 delimiter=","
 
