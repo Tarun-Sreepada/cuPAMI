@@ -393,11 +393,6 @@ class cuFPMiner_hash:
         # Get the maximum shared memory per block
         self.max_shared_mem = device_properties['sharedMemPerBlock']
         
-                
-        # warm up the GPU
-        with kvikio.CuFile(file, "r") as f:
-            pass
-    
         cp.cuda.Device().use()
         
         

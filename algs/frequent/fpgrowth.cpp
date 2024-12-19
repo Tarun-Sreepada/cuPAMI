@@ -16,6 +16,9 @@
 #include <unistd.h>
 #include <mutex>
 #include <functional>
+#include <limits>
+#include <sys/resource.h>
+
 
 long print_memory_usage()
 {
@@ -378,6 +381,10 @@ public:
         std::cout << "Runtime: " << runtime << " seconds\n";
         std::cout << "Number of patterns: " << final_patterns.size() << "\n";
         std::cout << "Memory usage: " << print_memory_usage() << " MB\n";
+        struct rusage usage;
+        getrusage(RUSAGE_SELF, &usage);
+        size_t peakMemory = usage.ru_maxrss;
+        std::cout << "Peak memory usage: " << peakMemory / 1024 << " MB\n";
     }
 };
 

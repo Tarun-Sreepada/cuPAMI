@@ -238,10 +238,7 @@ class cuFPMiner_bit:
             cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.malloc_managed).malloc)
         else:
             raise ValueError("Invalid allocator type. Choose 'device', 'pinned', or 'managed'.")
-        
-        # warm up the GPU
-        with kvikio.CuFile(file, "r") as f:
-            pass
+
     
         cp.cuda.Device().use()
         

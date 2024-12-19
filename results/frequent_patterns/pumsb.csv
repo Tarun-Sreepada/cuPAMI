@@ -1,0 +1,4 @@
+algorithm,file,min_sup,runtime,patterns,memory,time_to_read
+cuFPMiner_bit_csv,../../datasets/transactional/Transactional_pumsb.csv,41000,0.9978036880493164,36461,702.3125,0.9403772354125977
+cuFPMiner_hash_csv,../../datasets/transactional/Transactional_pumsb.csv,41000,3.209744691848755,36461,749.75,0.05614805221557617
+cuFPMiner_hash_shared_csv,../../datasets/transactional/Transactional_pumsb.csv,41000,0.2746853828430176,36461,698.6875,0.04691576957702637
