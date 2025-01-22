@@ -7,10 +7,11 @@
 #include <cstdlib> // For atoi and getenv
 #include <algorithm> // For reverse
 
+static std::random_device rd;
+static std::mt19937 gen(rd());
+
 // Function to generate a random item number
 int generateRandomItem(int maxItems) {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(1, maxItems);
     return dis(gen);
 }
@@ -104,15 +105,32 @@ void generateTriangleFile(const std::string& fileName, size_t fileSize, char del
 
 int main(int argc, char* argv[]) {
     if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " <fileName> <fileSize> <delimiter> <shapeChoice>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <fileName> <fileSize> <delimiter> <shapeChoice> optional:<maxItems>" << std::endl;
         return 1;
+    }
+
+    // int maxItems = max of int16 
+    int maxItems = INT32_MAX;
+
+    if (argc == 6) {
+        // if it says INT_32_MAX, it means that the user wants to set the maxItems
+        // if it says INT_16_MAX, it means that the user wants to set the maxItems to the max of int16
+        // if it says INT_8_MAX, it means that the user wants to set the maxItems to the max of int8
+        if (std::string(argv[5]) == "INT_32_MAX") {
+            maxItems = INT32_MAX;
+        } else if (std::string(argv[5]) == "INT_16_MAX") {
+            maxItems = INT16_MAX;
+        } else if (std::string(argv[5]) == "INT_8_MAX") {
+            maxItems = INT8_MAX;
+        } else {
+            maxItems = std::atoi(argv[5]);
+        }
     }
 
     std::string fileName = argv[1];
     std::string sizeInput = argv[2];
     char delimiter = argv[3][0];
     int shapeChoice = std::atoi(argv[4]);
-    int maxItems = 1000; // Default max item number
 
     size_t fileSize;
     if (sizeInput.back() == 'M') {
@@ -135,3 +153,5 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
+// g++ -std=c++11 -O3 -o file_generator file_generator.cpp

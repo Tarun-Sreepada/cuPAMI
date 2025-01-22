@@ -2,13 +2,33 @@ import abstract
 import kvikio
 import cupy as cp
 
+num_new_lines = cp.RawKernel(r'''
+extern "C" __global__ void num_new_lines(const char *data, const unsigned long long int size, unsigned int *numLines) {
+    unsigned long long int tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= size) return;
+    if (data[tid] == '\n') atomicAdd(&numLines[tid % 32], 1);
+}
+''', 'num_new_lines')
+        
+find_new_lines = cp.RawKernel(r'''
+extern "C" __global__ void find_new_lines(const char *data, const unsigned long long int size, unsigned long long int *newline_indices) {
+    unsigned long long int tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= size) return;
+    if (data[tid] == '\n') {
+        unsigned long long int index = atomicAdd(&newline_indices[0], 1);
+        newline_indices[index + 1] = tid;
+    }
+}
+''', 'find_new_lines')
+
+
 get_items_per_line = cp.RawKernel(r'''
                                   
 extern "C" __global__ void get_items_per_line(const char *data,
-                                const int *indexes, const int numLines, int *items_per_line, const int delimiter) {
-    int lineIdx = blockIdx.x * blockDim.x + threadIdx.x;
+                                const unsigned long long int *indexes, const int numLines, int *items_per_line, const char delimiter) {
+    unsigned long long int lineIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (lineIdx < numLines) {
-        for (int i = indexes[lineIdx]; i < indexes[lineIdx + 1]; i++) {
+        for (unsigned long long int i = indexes[lineIdx]; i < indexes[lineIdx + 1]; i++) {
             if (data[i] == delimiter) {
                 items_per_line[lineIdx + 1]++;
             }
@@ -48,20 +68,20 @@ __device__ int my_atoi(const char *str) {
     return sign * result;
 }
 
-
+//  (file_data, newline_indices, number_of_transactions, parsed_indices, raw_data, ord(self.delimiter)))
 extern "C" __global__ void convert_char_file_to_int_file(
-        const char *data, const int *indexes, const int numLines, const int *itemsPerLine, int *rawData, const int seperator) {
+        const char *data, const unsigned long long int *indexes, const int numLines, const unsigned long long int *itemsPerLine, unsigned int *rawData, const char seperator) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= numLines) return;
                             
-    int start = indexes[tid];
-    int end = indexes[tid + 1];
+    unsigned long long int start = indexes[tid];
+    if (tid != 0) start++;
+    unsigned long long int end = indexes[tid + 1];
     char buffer[32];
     int bufferIndex = 0;
 
-    int j = itemsPerLine[tid];
-    start++;
-    for (int k = start; k < end; k++) {
+    unsigned long long int j = itemsPerLine[tid];
+    for (unsigned long long int k = start; k < end; k++) {
         if (data[k] != seperator) {
             buffer[bufferIndex++] = data[k];
         }
@@ -76,6 +96,8 @@ extern "C" __global__ void convert_char_file_to_int_file(
 }
 
 ''', 'convert_char_file_to_int_file')
+
+
 
 class gpu_read(abstract.AbstractRead):
     def __init__(self, file, delimiter = ',', warmup = False):
@@ -102,50 +124,63 @@ class gpu_read(abstract.AbstractRead):
         
         # read data
         file_size = abstract.os.path.getsize(self.file)
+        print("File size: ", file_size)
         
         
         file_data = cp.empty(file_size, dtype=cp.uint8)
         manual += file_size
         
         with kvikio.CuFile(self.file, "r") as f:
-            f.read(file_data)
+            f.raw_read(file_data)
             
         # count number of transactions
-        number_of_transactions = cp.count_nonzero(file_data == ord('\n')).get()
+        numLines = cp.zeros(32, dtype=cp.uint32)
+        num_new_lines(
+                (file_size // self.block_size + 1,),
+                (self.block_size,),
+                (file_data, file_size, numLines)
+            )
+
+        cp.cuda.Device().synchronize()
+        number_of_transactions = int(numLines.sum())
+        print("Number of transactions: ", number_of_transactions)
         
         # get indices of newline characters
-        newline_indices = cp.where(file_data == ord('\n'))[0]
-        
-        # add 0 to the front of newline_indices and size of file to the end of newline_indices
-        newline_indices = cp.concatenate([cp.array([0]), newline_indices])
-        newline_indices = cp.concatenate([newline_indices, cp.array([file_size])])
-        newline_indices = cp.sort(newline_indices).astype(cp.int32)
+        newline_indices = cp.zeros(number_of_transactions + 1, dtype=cp.uint64)
         manual += newline_indices.nbytes
+        find_new_lines(
+            (file_size // self.block_size + 1,),
+            (self.block_size,),
+            (file_data, file_size, newline_indices)
+        )
+        # set the first element to 0
+        newline_indices[0] = 0
+        # sort newline_indices
+        newline_indices = cp.sort(newline_indices).astype(cp.uint64)
         
         
-        # total number of items
+        # # total number of items
         items_per_line = cp.zeros(number_of_transactions + 1, dtype=cp.int32)
         manual += items_per_line.nbytes
         
 
         get_items_per_line((number_of_transactions//self.block_size + 1,), (self.block_size,), (file_data, 
-                                                        newline_indices, number_of_transactions, items_per_line, ord(self.delimiter)))
-        cp.cuda.Device().synchronize()
-        # add 1 to all elements
+                                                        newline_indices, number_of_transactions, items_per_line, cp.uint8(ord(self.delimiter))))
+        # cp.cuda.Device().synchronize()
+        # # add 1 to all elements
         items_per_line = items_per_line + 1
         items_per_line[0] = 0
         
-        parsed_indices = cp.cumsum(items_per_line).astype(cp.int32)
+        parsed_indices = cp.cumsum(items_per_line).astype(cp.uint64)
         manual += parsed_indices.nbytes
-        number_of_items = parsed_indices[-1].astype(cp.int32).get()
+        number_of_items = parsed_indices[-1].get()
         
-        raw_data = cp.zeros(number_of_items, dtype=cp.int32)
+        raw_data = cp.zeros(number_of_items, dtype=cp.uint32)
         manual += raw_data.nbytes
         
         convert_char_file_to_int_file((number_of_transactions//self.block_size + 1,), (self.block_size,), 
-                                      (file_data, newline_indices, number_of_transactions, parsed_indices, raw_data, ord(self.delimiter)))
+                                      (file_data, newline_indices, number_of_transactions, parsed_indices, raw_data, cp.uint8(ord(self.delimiter))))
         
-        self.number_of_transactions = number_of_transactions
         
         
         self.runtime = abstract.time.time() - start
@@ -158,6 +193,8 @@ class gpu_read(abstract.AbstractRead):
             self.custom_memory["gpu"] = manual
         else: 
             self.custom_memory["gpu"] = end_memory - start_memory
+            
+        print("Last element: ", raw_data[-1])
         
         return raw_data, parsed_indices
         
@@ -166,7 +203,7 @@ class gpu_read(abstract.AbstractRead):
 if __name__ == "__main__":
     
     cur_dir  = abstract.os.path.dirname(__file__)
-    file = "../../datasets/synthetic/transactional/square_10M.csv"
+    file = "../../datasets/synthetic/transactional/triangle_4096M.csv"
     
     file = abstract.os.path.join(cur_dir, file)
     

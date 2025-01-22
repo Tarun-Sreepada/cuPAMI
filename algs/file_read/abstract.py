@@ -4,7 +4,10 @@ import os
 import time
 
 def bytes_to_mb(bytes):
-    return bytes / 1024 / 1024
+    
+    rounded = round(bytes / 1024 / 1024, 2)
+    
+    return rounded
 
 class AbstractRead(ABC):
     def __init__(self, file, delimiter = ','):

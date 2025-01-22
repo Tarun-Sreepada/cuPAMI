@@ -24,15 +24,23 @@ class python_read(abstract.AbstractRead):
 
         return file
     
+def num_lines(file):
+    with open(file, 'r') as f:
+        return sum(1 for _ in f)
+    
 if __name__ == "__main__":
     
     cur_dir  = abstract.os.path.dirname(__file__)
-    file = "../../datasets/synthetic/transactional/square_1100M.csv"
+    file = "../../datasets/synthetic/transactional/triangle_4096M.csv"
     
     file = abstract.os.path.join(cur_dir, file)
     
-    obj = python_read(file, ",")
-    obj.read()
-    print(obj.get_runtime())
-    print(abstract.bytes_to_mb(obj.get_memory()), "MB")
-    print(abstract.bytes_to_mb(obj.get_custom_memory()["cpu"]), "MB")
+    
+    # obj = python_read(file, ",")
+    # obj.read()
+    # print(obj.get_runtime())
+    # print(abstract.bytes_to_mb(obj.get_memory()), "MB")
+    # print(abstract.bytes_to_mb(obj.get_custom_memory()["cpu"]), "MB")
+    # print("Number of rows:", len(obj.get_data()))
+    
+    print(num_lines(file))

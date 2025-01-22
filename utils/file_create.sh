@@ -18,12 +18,11 @@ fi
 file_gen_loc="${current_dir}/file_generator"
 
 
-# sizes=("1000M" "1250M" "1500M" "1750M" "2000M")
-# shapes=("square")
+sizes=("1024M" "2048M" "3072M")
+shapes=("square")
 
-sizes=("700M" "800M" "900M" "1000M" "1100M" "1200M")
-sizes=("1M")
-shapes=("triangle")
+# sizes=("700M" "800M" "900M" "1000M" "1100M" "1200M")
+# shapes=("triangle")
 
 delimiter=","
 
