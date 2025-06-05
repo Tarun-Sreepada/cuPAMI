@@ -11,6 +11,12 @@ Welcome to cuPAMI's documentation!
 
    algs
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Algorithms
+
+   bubble_sort
+
 Indices and tables
 ==================
 
