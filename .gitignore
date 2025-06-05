@@ -34,8 +34,8 @@ tests/*
 *.so
 *.out
 *.exe
-=======
-# Ignore datasets by default
+
+# Documentation build output
 datasets/*
 !datasets/.gitkeep
 __pycache__/
