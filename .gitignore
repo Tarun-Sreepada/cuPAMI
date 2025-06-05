@@ -1,3 +1,40 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Logs
+*.log
+cufile.log
+algs/file_read/cufile.log
+algs/frequent/cufile.log
+
+# Ignore datasets and tests contents
+datasets/*
+!datasets/.gitkeep
+tests/*
+!tests/.gitkeep
+!tests/profile_algorithm.py
+
+# Build artifacts
+*.o
+*.so
+*.out
+*.exe
+=======
 # Ignore datasets by default
 datasets/*
 !datasets/.gitkeep
