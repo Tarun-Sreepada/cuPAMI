@@ -24,10 +24,9 @@ algs/frequent/cufile.log
 
 # Ignore datasets and tests contents
 datasets/*
-!datasets/.gitkeep
+!datasets/bubble_sort/bubble_sort.txt
 tests/*
-!tests/.gitkeep
-!tests/profile_algorithm.py
+!tests/*.py
 
 # Build artifacts
 *.o
@@ -37,9 +36,9 @@ tests/*
 
 # Documentation build output
 datasets/*
-!datasets/.gitkeep
+!datasets/bubble_sort/bubble_sort.txt
 __pycache__/
 *.pyc
 tests/*
-!tests/.gitkeep
+!tests/*.py
 docs/_build/
