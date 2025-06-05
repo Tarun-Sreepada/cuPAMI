@@ -8,6 +8,12 @@ import os
 import argparse
 
 PY_TEMPLATE = '''from algs.base_algorithm import BaseAlgorithm
+=======
+"""Create skeleton directories for a new algorithm."""
+import os
+import sys
+
+TEMPLATE = '''from algs.base_algorithm import BaseAlgorithm
 
 class {class_name}(BaseAlgorithm):
     def mine(self):
@@ -70,6 +76,17 @@ def main() -> None:
     args = parser.parse_args()
 
     name = args.name
+        # TODO: implement algorithm logic
+        pass
+'''
+
+
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python utils/create_algorithm.py <name>")
+        sys.exit(1)
+
+    name = sys.argv[1]
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     paths = {
@@ -105,6 +122,8 @@ def main() -> None:
             with open(src_file, 'w') as f:
                 src_template = CPP_SRC_TEMPLATE if args.lang == 'cpp' else CUDA_SRC_TEMPLATE
                 f.write(src_template.format(name=name))
+        with open(alg_file, 'w') as f:
+            f.write(TEMPLATE.format(class_name=class_name))
 
     print(f"Created skeleton for '{name}'")
 

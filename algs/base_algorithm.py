@@ -44,3 +44,4 @@ class BaseAlgorithm(ABC):
         """
         with open(path, mode, encoding=encoding) as f:
             return f.read()
+=======

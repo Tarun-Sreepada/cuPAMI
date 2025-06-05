@@ -26,6 +26,9 @@ pip install -r requirements.txt
 
 Some algorithms rely on GPU libraries such as `cupy` and `cudf`. Ensure your
 environment satisfies their prerequisites.
+=======
+python utils/create_algorithm.py <name>
+```
 
 ## Base algorithm interface
 
@@ -37,6 +40,7 @@ statistics during execution.  The class exposes three common accessors:
 * `getMemoryRSS()` – return the resident set size (RSS) memory usage in bytes.
 * `getMemoryUSS()` – return the unique set size (USS) memory usage in bytes.
 * `readFile(path)` – return the contents of a file for custom processing.
+=======
 
 ```python
 from algs.base_algorithm import BaseAlgorithm
@@ -65,3 +69,4 @@ python tests/profile_algorithm.py <name>
 Replace `<name>` with the name of the algorithm you wish to profile.  The script
 will create a folder under `results/<name>/` containing `line_profile.lprof`,
 `cprofile.prof` and `profile.html`.
+=======
