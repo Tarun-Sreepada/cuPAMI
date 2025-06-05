@@ -1,1 +1,7 @@
-/datasets
+# Ignore datasets by default
+datasets/*
+!datasets/.gitkeep
+__pycache__/
+*.pyc
+tests/*
+!tests/.gitkeep
