@@ -5,15 +5,10 @@ The script optionally scaffolds C++ or CUDA implementations alongside a
 Python wrapper so the profiling utilities work consistently.
 """
 import os
+import sys
 import argparse
 
 PY_TEMPLATE = '''from algs.base_algorithm import BaseAlgorithm
-=======
-"""Create skeleton directories for a new algorithm."""
-import os
-import sys
-
-TEMPLATE = '''from algs.base_algorithm import BaseAlgorithm
 
 class {class_name}(BaseAlgorithm):
     def mine(self):
@@ -45,11 +40,11 @@ class {class_name}(BaseAlgorithm):
 
 CPP_SRC_TEMPLATE = '''#include <iostream>
 
-int main() {{
+int main() {
     // TODO: implement algorithm
     std::cout << "Placeholder for {name}" << std::endl;
     return 0;
-}}
+}
 '''
 
 CUDA_WRAPPER_TEMPLATE = CPP_WRAPPER_TEMPLATE
@@ -57,18 +52,17 @@ CUDA_WRAPPER_TEMPLATE = CPP_WRAPPER_TEMPLATE
 CUDA_SRC_TEMPLATE = '''#include <iostream>
 #include <cuda_runtime.h>
 
-__global__ void kernel() {{}}
+__global__ void kernel() {}
 
-int main() {{
+int main() {
     kernel<<<1,1>>>();
     cudaDeviceSynchronize();
     std::cout << "Placeholder for {name} CUDA" << std::endl;
     return 0;
-}}
+}
 '''
 
-
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(description="Create a new algorithm skeleton")
     parser.add_argument("name", help="Algorithm name")
     parser.add_argument("--lang", choices=["python", "cpp", "cuda"], default="python",
@@ -76,17 +70,6 @@ def main() -> None:
     args = parser.parse_args()
 
     name = args.name
-        # TODO: implement algorithm logic
-        pass
-'''
-
-
-def main():
-    if len(sys.argv) != 2:
-        print("Usage: python utils/create_algorithm.py <name>")
-        sys.exit(1)
-
-    name = sys.argv[1]
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     paths = {
@@ -122,8 +105,6 @@ def main():
             with open(src_file, 'w') as f:
                 src_template = CPP_SRC_TEMPLATE if args.lang == 'cpp' else CUDA_SRC_TEMPLATE
                 f.write(src_template.format(name=name))
-        with open(alg_file, 'w') as f:
-            f.write(TEMPLATE.format(class_name=class_name))
 
     print(f"Created skeleton for '{name}'")
 
