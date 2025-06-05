@@ -70,6 +70,10 @@ will create a folder under `results/<name>/` containing `line_profile.lprof`,
 Documentation is generated with [Sphinx](https://www.sphinx-doc.org/). To build
 the HTML docs run:
 
+## Building documentation
+
+Documentation is generated with [Sphinx](https://www.sphinx-doc.org/). To build the HTML docs run:
+
 ```bash
 make -C docs html
 ```
@@ -80,3 +84,4 @@ documentation.
 
 For more details on contributing algorithms and tests, see
 [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
+The API reference is produced automatically from the modules under `algs/`. New algorithms documented with Python docstrings will appear in the generated documentation.

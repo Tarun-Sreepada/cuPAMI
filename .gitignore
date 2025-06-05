@@ -36,4 +36,10 @@ tests/*
 *.exe
 
 # Documentation build output
+datasets/*
+!datasets/.gitkeep
+__pycache__/
+*.pyc
+tests/*
+!tests/.gitkeep
 docs/_build/

@@ -13,3 +13,10 @@ clean:
 
 html:
 	$(SPHINXBUILD) -M html $(SOURCEDIR) $(BUILDDIR)
+$(SPHINXBUILD) -M help $(SOURCEDIR) $(BUILDDIR)
+
+clean:
+rm -rf $(BUILDDIR)
+
+html:
+$(SPHINXBUILD) -M html $(SOURCEDIR) $(BUILDDIR)
