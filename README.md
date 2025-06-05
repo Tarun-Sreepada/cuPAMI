@@ -70,3 +70,13 @@ Replace `<name>` with the name of the algorithm you wish to profile.  The script
 will create a folder under `results/<name>/` containing `line_profile.lprof`,
 `cprofile.prof` and `profile.html`.
 =======
+
+## Building documentation
+
+Documentation is generated with [Sphinx](https://www.sphinx-doc.org/). To build the HTML docs run:
+
+```bash
+make -C docs html
+```
+
+The API reference is produced automatically from the modules under `algs/`. New algorithms documented with Python docstrings will appear in the generated documentation.
