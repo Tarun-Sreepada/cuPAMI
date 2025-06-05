@@ -22,11 +22,6 @@ cufile.log
 algs/file_read/cufile.log
 algs/frequent/cufile.log
 
-# Ignore datasets and tests contents
-datasets/*
-!datasets/bubble_sort/bubble_sort.txt
-tests/*
-!tests/*.py
 
 # Build artifacts
 *.o
@@ -41,4 +36,3 @@ __pycache__/
 *.pyc
 tests/*
 !tests/*.py
-docs/_build/
