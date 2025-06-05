@@ -16,6 +16,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r docs/requirements.txt
+
       - name: Build documentation
         run: make docs
       - name: Deploy to GitHub Pages
@@ -23,5 +24,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs/_build/html
+
           publish_branch: gh-pages
           force_orphan: true
