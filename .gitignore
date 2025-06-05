@@ -42,3 +42,4 @@ __pycache__/
 *.pyc
 tests/*
 !tests/.gitkeep
+docs/_build/
