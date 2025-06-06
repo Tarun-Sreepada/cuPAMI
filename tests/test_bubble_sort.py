@@ -1,23 +1,21 @@
 import os
 import sys
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import cProfile
+import pstats
 
-from algs.bubble_sort.bubble_sort import BubbleSort
-
-
-def test_sort_inline():
-    alg = BubbleSort([5, 1, 4, 2, 8])
-    result = alg.mine()
-    assert result == [1, 2, 4, 5, 8]
-    assert alg.getRuntime() is not None
-    # memory metrics may be None if psutil is unavailable
-    assert alg.getMemoryRSS() is None or isinstance(alg.getMemoryRSS(), int)
+from algorithms.bubble_sort import BubbleSort
 
 
-def test_sort_from_file():
+def test_bubble_sort_produces_sorted_list(tmp_path):
+    prof_path = tmp_path / "profile.prof"
     alg = BubbleSort()
-    path = os.path.join('datasets', 'bubble_sort', 'bubble_sort.txt')
-    assert os.path.exists(path)
-    result = alg.mine()
-    assert result == [1, 2, 4, 5, 8]
+    cProfile.runctx('alg.run()', globals(), locals(), str(prof_path))
+
+    stats = pstats.Stats(str(prof_path))
+    stats.strip_dirs().sort_stats('cumtime').print_stats(5)
+
+    assert alg.sorted == [1, 2, 4, 5, 8]
+    assert alg.getruntime() is not None
+    assert alg.getmemoryrss() is None or isinstance(alg.getmemoryrss(), int)
+    assert alg.getmemoryuss() is None or isinstance(alg.getmemoryuss(), int)
