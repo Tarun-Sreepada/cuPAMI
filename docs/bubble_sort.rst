@@ -1,7 +1,5 @@
-Bubble Sort Algorithm
-=====================
+Bubble Sort
+===========
 
-.. automodule:: algs.bubble_sort.bubble_sort
+.. automodule:: algorithms.bubble_sort
     :members:
-    :undoc-members:
-    :show-inheritance:
