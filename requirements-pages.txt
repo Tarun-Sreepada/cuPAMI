@@ -1,0 +1,10 @@
+cudf
+kvikio
+numpy
+pandas
+psutil
+numba
+line_profiler
+snakeviz
+matplotlib
+sphinx
